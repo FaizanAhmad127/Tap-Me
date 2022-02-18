@@ -1,11 +1,17 @@
 import 'dart:async';
 import 'dart:math';
-
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_neumorphic/flutter_neumorphic.dart';
+import 'package:page_transition/page_transition.dart';
+import 'package:vibration/vibration.dart';
+import 'game_over.dart';
 
 
 class TapGame extends StatefulWidget {
-  const TapGame({Key? key}) : super(key: key);
+  int? score2;
+  TapGame({required this.score2});
+
 
   @override
   _TapGameState createState() => _TapGameState();
@@ -17,27 +23,40 @@ class _TapGameState extends State<TapGame> {
   int score=0;
   int seconds=15;
   Color tapColor=Colors.grey.shade300;
-  Color gameOverColor=Colors.grey.shade300;
-  Color playAgainColor=Colors.grey.shade300;
-  bool isTappedDown=false;
   bool isTapped=false;
-  bool isGameOver=false;
   bool isClockStarted=true;
   List<int> randomNumbers=[];
+  double buttonDepth=10;
+  void playLocalAsset() async {
+    AudioCache cache = AudioCache();
+    await cache.play("sound.wav");
+  }
+  void vibratePhone()async
+  {
+    if (await Vibration.hasVibrator()??false) {
+      if (await Vibration.hasAmplitudeControl()??false) {
+        Vibration.vibrate(amplitude: 128);
+      }
+      else
+        {
+          Vibration.vibrate();
+        }
+
+    }
+  }
+
 
   void startTimer() {
     const oneSec =  Duration(seconds: 1);
     timer = Timer.periodic(
       oneSec,
           (Timer timer) {
-        if (seconds == 0 || isGameOver) {
-
-          setState(() {
-            isGameOver=true;
-            gameOverColor=Colors.black;
-            playAgainColor=Colors.green;
+        if (seconds == 0) {
             timer.cancel();
-          });
+            vibratePhone();
+            Navigator.pushReplacement(context, PageTransition(
+                duration: const Duration(milliseconds: 800),
+                type: PageTransitionType.rightToLeftWithFade, child: GameOver(score2: score,)));
         } else {
           setState(() {
             seconds--;
@@ -65,13 +84,21 @@ class _TapGameState extends State<TapGame> {
   }
   @override
   void dispose() {
-    timer!.cancel();
+    try{
+      timer!.cancel();
+    }
+    catch(e)
+    {
+      print("Null checked");
+    }
+
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
+    score=widget.score2!;
     randomNumbers=getRandomNumbers();
   }
 
@@ -153,18 +180,31 @@ class _TapGameState extends State<TapGame> {
               ),
               SizedBox(height: h*0.2,),
               GestureDetector(
+                onLongPressStart: (d){
+                  setState(() {
+                    buttonDepth=0;
+
+                  });
+                },
+               onLongPressEnd: (d){
+                 setState(() {
+                   buttonDepth=10;
+
+                 });
+               },
+
                 onLongPress:(){
-                  if(!isGameOver)
-                    {
+
                       score++;
                       setState(() {
                         isTapped=false;
                       });
-                    }
+
 
                 },
                 onTap: ()
                 {
+                  playLocalAsset();
                   if(isClockStarted)
                     {
                       startTimer();
@@ -172,14 +212,13 @@ class _TapGameState extends State<TapGame> {
                     }
                   if(isTapped)
                     {
-                      setState(() {
-                        isGameOver=true;
-                        gameOverColor=Colors.black;
-                        playAgainColor=Colors.green;
-                      });
+                      vibratePhone();
+                      Navigator.pushReplacement(context, PageTransition(
+                          duration: Duration(milliseconds: 800),
+                          type: PageTransitionType.rightToLeftWithFade, child: GameOver(score2: score,)));
 
                     }
-                  if(!isGameOver)
+                  if(!isTapped)
                     {
                       setState(() {
                         score++;
@@ -190,98 +229,132 @@ class _TapGameState extends State<TapGame> {
                       });
                     }
 
-
                 },
-                child: Container(
+                child:
+                Container(
                   width: h*0.4,
                   height: w*0.4,
-                  child:  Center(child: FittedBox(
-                    child: FittedBox(
-                      child: Text("Tap Me",style: TextStyle(
-                        color: isTapped?tapColor:Colors.black,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5
-                      ),),
-                    ),
-                  )),
-                  decoration: BoxDecoration(
-                      color: isTapped?Colors.red.shade600:tapColor,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                           // color: isTapped?Colors.red.shade200:Colors.grey.shade500,
-                            color: isTappedDown?Colors.grey.shade300:Colors.grey.shade500,
-                            offset: const Offset(4.0, 4.0),
-                            blurRadius: 15.0,
-                            spreadRadius: 1.0),
-                         BoxShadow(
-                            color:  isTappedDown?Colors.grey.shade300:Colors.white,
-                            offset: const Offset(-4.0, -4.0),
-                            blurRadius: 15.0,
-                            spreadRadius: 1.0),
-                      ]),
-                ),
-              ),
-              SizedBox(height: 0.1*h,),
-              AnimatedContainer(
-                height: 0.07*h,
-                  width: 0.4*w,
-                  decoration: BoxDecoration(
-                    color: gameOverColor,
-                    borderRadius: BorderRadius.circular(5)
-                  ),
-                  duration: Duration(seconds: 1),
-                  child: Center(
-                    child: FittedBox(
-                      child: Text("Game Over",
-                          style: TextStyle(
-                            color: Colors.grey.shade300,
-                            letterSpacing: 1.5,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700
-                          ),),
-                    ),
-                  )),
-              SizedBox(height: 0.05*h,),
-              GestureDetector(
-                onTap:(){
-                  if(isGameOver)
-                    {
-                      setState(() {
-                        isGameOver=false;
-                        score=0;
-                        seconds=15;
-                        isTapped=false;
-                        gameOverColor=Colors.grey.shade300;
-                        playAgainColor=Colors.grey.shade300;
-                        isClockStarted=true;
-                        getRandomNumbers();
-                      });
-
-
-                    }
-                },
-                child: AnimatedContainer(
-                    height: 0.07*h,
-                    width: 0.4*w,
-                    decoration: BoxDecoration(
-                        color: playAgainColor,
-                        borderRadius: BorderRadius.circular(5)
-                    ),
-                    duration: Duration(seconds: 2),
-                    child: Center(
-                      child: FittedBox(
-                        child: Text("Play Again",
-                          style: TextStyle(
-                              color: Colors.grey.shade300,
-                              letterSpacing: 1.5,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700
-                          ),),
+                  child: Neumorphic(
+                    duration: Duration(milliseconds: 200),
+                      style: NeumorphicStyle(
+                          shape: NeumorphicShape.flat,
+                          boxShape: NeumorphicBoxShape.circle(),
+                          depth: buttonDepth,
+                          lightSource: LightSource.topLeft,
+                        color: isTapped?Colors.red.shade600:tapColor,
                       ),
-                    )),
+                      child: Center(child: FittedBox(
+                        child: Text("Tap Me",style: TextStyle(
+                            color: isTapped?tapColor:Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5
+                        ),),
+                      )),
+                  ),
+                ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                // child: Container(
+                //   width: h*0.4,
+                //   height: w*0.4,
+                //   child:  Center(child: FittedBox(
+                //     child: Text("Tap Me",style: TextStyle(
+                //       color: isTapped?tapColor:Colors.black,
+                //       fontSize: 16,
+                //       fontWeight: FontWeight.bold,
+                //       letterSpacing: 1.5
+                //     ),),
+                //   )),
+                //   decoration: BoxDecoration(
+                //       color: isTapped?Colors.red.shade600:tapColor,
+                //       shape: BoxShape.circle,
+                //       boxShadow: [
+                //         BoxShadow(
+                //            color: Colors.grey.shade500,
+                //             offset: const Offset(4.0, 4.0),
+                //             blurRadius: 15.0,
+                //             spreadRadius: 1.0),
+                //          const BoxShadow(
+                //             color:  Colors.white,
+                //             offset: Offset(-4.0, -4.0),
+                //             blurRadius: 15.0,
+                //             spreadRadius: 1.0),
+                //       ]),
+                // ),
               ),
+              // SizedBox(height: 0.1*h,),
+              // AnimatedContainer(
+              //   height: 0.07*h,
+              //     width: 0.4*w,
+              //     decoration: BoxDecoration(
+              //       color: gameOverColor,
+              //       borderRadius: BorderRadius.circular(5)
+              //     ),
+              //     duration: Duration(seconds: 1),
+              //     child: Center(
+              //       child: FittedBox(
+              //         child: Text("Game Over",
+              //             style: TextStyle(
+              //               color: Colors.grey.shade300,
+              //               letterSpacing: 1.5,
+              //               fontSize: 16,
+              //               fontWeight: FontWeight.w700
+              //             ),),
+              //       ),
+              //     )),
+              // SizedBox(height: 0.05*h,),
+              // GestureDetector(
+              //   onTap:(){
+              //     if(isGameOver)
+              //       {
+              //         setState(() {
+              //           isGameOver=false;
+              //           score=0;
+              //           seconds=15;
+              //           isTapped=false;
+              //           gameOverColor=Colors.grey.shade300;
+              //           playAgainColor=Colors.grey.shade300;
+              //           isClockStarted=true;
+              //           getRandomNumbers();
+              //         });
+              //
+              //
+              //       }
+              //   },
+              //   child: AnimatedContainer(
+              //       height: 0.07*h,
+              //       width: 0.4*w,
+              //       decoration: BoxDecoration(
+              //           color: playAgainColor,
+              //           borderRadius: BorderRadius.circular(5)
+              //       ),
+              //       duration: Duration(seconds: 2),
+              //       child: Center(
+              //         child: FittedBox(
+              //           child: Text("Play Again",
+              //             style: TextStyle(
+              //                 color: Colors.grey.shade300,
+              //                 letterSpacing: 1.5,
+              //                 fontSize: 16,
+              //                 fontWeight: FontWeight.w700
+              //             ),),
+              //         ),
+              //       )),
+              // ),
             ],
           ),
         ),

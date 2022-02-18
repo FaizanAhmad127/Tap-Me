@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.tap_game">
+
+    <uses-permission android:name="android.permission.VIBRATE"/>
    <application
         android:label="Tap Me"
         android:icon="@mipmap/ic_launcher">
